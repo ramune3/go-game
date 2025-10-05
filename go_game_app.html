@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>囲碁 - Go Game</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Hiragino Sans', 'Yu Gothic', sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      color: #fff;
+    }
+    
+    .container {
+      display: flex;
+      gap: 30px;
+      max-width: 1400px;
+      align-items: flex-start;
+    }
+    
+    .game-board {
+      background: linear-gradient(135deg, #d4a574 0%, #c9954d 100%);
+      padding: 40px;
+      border-radius: 8px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5),
+                  inset 0 1px 3px rgba(255, 255, 255, 0.2);
+    }
+    
+    canvas {
+      display: block;
+      cursor: pointer;
+      background: #daa96e;
+      border-radius: 4px;
+    }
+    
+    .sidebar {
+      background: rgba(255, 255, 255, 0.05);
+      padding: 30px;
+      border-radius: 12px;
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      min-width: 280px;
+    }
+    
+    .info-section {
+      margin-bottom: 25px;
+    }
+    
+    .info-section h2 {
+      font-size: 14px;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 12px;
+    }
+    
+    .turn-indicator {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 15px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      font-size: 18px;
+      font-weight: 600;
+    }
+    
+    .stone-preview {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+    
+    .stone-preview.black {
+      background: radial-gradient(circle at 35% 35%, #444, #000);
+    }
+    
+    .stone-preview.white {
+      background: radial-gradient(circle at 35% 35%, #fff, #ddd);
+    }
+    
+    .score-display {
+      display: flex;
+      justify-content: space-between;
+      gap: 15px;
+    }
+    
+    .score-item {
+      flex: 1;
+      padding: 15px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      text-align: center;
+    }
+    
+    .score-label {
+      font-size: 12px;
+      color: #94a3b8;
+      margin-bottom: 5px;
+    }
+    
+    .score-value {
+      font-size: 24px;
+      font-weight: 700;
+    }
+    
+    .controls {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    
+    button {
+      padding: 12px 20px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
+      color: #000;
+      box-shadow: 0 4px 12px rgba(74, 222, 128, 0.3);
+    }
+    
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(74, 222, 128, 0.4);
+    }
+    
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.15);
+    }
+    
+    .btn-danger {
+      background: rgba(239, 68, 68, 0.2);
+      color: #fca5a5;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+    
+    .btn-danger:hover {
+      background: rgba(239, 68, 68, 0.3);
+    }
+    
+    button:active {
+      transform: translateY(0);
+    }
+    
+    .captured {
+      display: flex;
+      justify-content: space-between;
+      padding: 12px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      font-size: 14px;
+    }
+    
+    .message {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 15px 30px;
+      background: rgba(0, 0, 0, 0.9);
+      border-radius: 8px;
+      border: 2px solid #4ade80;
+      color: #4ade80;
+      font-weight: 600;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+      z-index: 1000;
+    }
+    
+    .message.show {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="game-board">
+      <canvas id="board"></canvas>
+    </div>
+    
+    <div class="sidebar">
+      <div class="info-section">
+        <h2>現在の手番</h2>
+        <div class="turn-indicator" id="turnIndicator">
+          <div class="stone-preview black" id="stonePreview"></div>
+          <span id="turnText">黒の番</span>
+        </div>
+      </div>
+      
+      <div class="info-section">
+        <h2>スコア</h2>
+        <div class="score-display">
+          <div class="score-item">
+            <div class="score-label">黒</div>
+            <div class="score-value" id="blackScore">0</div>
+          </div>
+          <div class="score-item">
+            <div class="score-label">白</div>
+            <div class="score-value" id="whiteScore">0</div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="info-section">
+        <h2>捕獲した石</h2>
+        <div class="captured">
+          <span>黒が捕獲: <strong id="blackCaptured">0</strong></span>
+          <span>白が捕獲: <strong id="whiteCaptured">0</strong></span>
+        </div>
+      </div>
+      
+      <div class="info-section">
+        <h2>操作</h2>
+        <div class="controls">
+          <button class="btn-primary" id="passBtn">パス</button>
+          <button class="btn-secondary" id="undoBtn">一手戻す</button>
+          <button class="btn-secondary" id="newGameBtn">新規ゲーム</button>
+          <button class="btn-danger" id="endGameBtn">終局</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="message" id="message"></div>
+
+  <script>
+    const canvas = document.getElementById('board');
+    const ctx = canvas.getContext('2d');
+    
+    // Game settings
+    const BOARD_SIZE = 19;
+    const CELL_SIZE = 30;
+    const STONE_RADIUS = 13;
+    const MARGIN = 30;
+    
+    canvas.width = CELL_SIZE * (BOARD_SIZE - 1) + MARGIN * 2;
+    canvas.height = CELL_SIZE * (BOARD_SIZE - 1) + MARGIN * 2;
+    
+    // Game state
+    let board = [];
+    let currentPlayer = 'black';
+    let blackCaptured = 0;
+    let whiteCaptured = 0;
+    let history = [];
+    let passCount = 0;
+    let gameOver = false;
+    
+    // Initialize
+    function init() {
+      board = Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(null));
+      currentPlayer = 'black';
+      blackCaptured = 0;
+      whiteCaptured = 0;
+      history = [];
+      passCount = 0;
+      gameOver = false;
+      drawBoard();
+      updateUI();
+    }
+    
+    // Draw board
+    function drawBoard() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Background wood texture effect
+      ctx.fillStyle = '#daa96e';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      // Grid lines
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 1;
+      
+      for (let i = 0; i < BOARD_SIZE; i++) {
+        // Vertical lines
+        ctx.beginPath();
+        ctx.moveTo(MARGIN + i * CELL_SIZE, MARGIN);
+        ctx.lineTo(MARGIN + i * CELL_SIZE, MARGIN + (BOARD_SIZE - 1) * CELL_SIZE);
+        ctx.stroke();
+        
+        // Horizontal lines
+        ctx.beginPath();
+        ctx.moveTo(MARGIN, MARGIN + i * CELL_SIZE);
+        ctx.lineTo(MARGIN + (BOARD_SIZE - 1) * CELL_SIZE, MARGIN + i * CELL_SIZE);
+        ctx.stroke();
+      }
+      
+      // Star points
+      const starPoints = [
+        [3, 3], [3, 9], [3, 15],
+        [9, 3], [9, 9], [9, 15],
+        [15, 3], [15, 9], [15, 15]
+      ];
+      
+      ctx.fillStyle = '#000';
+      starPoints.forEach(([x, y]) => {
+        ctx.beginPath();
+        ctx.arc(MARGIN + x * CELL_SIZE, MARGIN + y * CELL_SIZE, 4, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      
+      // Draw stones
+      for (let y = 0; y < BOARD_SIZE; y++) {
+        for (let x = 0; x < BOARD_SIZE; x++) {
+          if (board[y][x]) {
+            drawStone(x, y, board[y][x]);
+          }
+        }
+      }
+    }
+    
+    // Draw stone
+    function drawStone(x, y, color) {
+      const px = MARGIN + x * CELL_SIZE;
+      const py = MARGIN + y * CELL_SIZE;
+      
+      // Shadow
+      ctx.beginPath();
+      ctx.arc(px + 2, py + 2, STONE_RADIUS, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+      ctx.fill();
+      
+      // Stone
+      ctx.beginPath();
+      ctx.arc(px, py, STONE_RADIUS, 0, Math.PI * 2);
+      
+      if (color === 'black') {
+        const gradient = ctx.createRadialGradient(px - 4, py - 4, 0, px, py, STONE_RADIUS);
+        gradient.addColorStop(0, '#444');
+        gradient.addColorStop(1, '#000');
+        ctx.fillStyle = gradient;
+      } else {
+        const gradient = ctx.createRadialGradient(px - 4, py - 4, 0, px, py, STONE_RADIUS);
+        gradient.addColorStop(0, '#fff');
+        gradient.addColorStop(1, '#ddd');
+        ctx.fillStyle = gradient;
+      }
+      
+      ctx.fill();
+      ctx.strokeStyle = color === 'black' ? '#000' : '#ccc';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+    
+    // Get board position from mouse event
+    function getBoardPosition(e) {
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      
+      const boardX = Math.round((x - MARGIN) / CELL_SIZE);
+      const boardY = Math.round((y - MARGIN) / CELL_SIZE);
+      
+      if (boardX >= 0 && boardX < BOARD_SIZE && boardY >= 0 && boardY < BOARD_SIZE) {
+        return { x: boardX, y: boardY };
+      }
+      return null;
+    }
+    
+    // Place stone
+    function placeStone(x, y) {
+      if (gameOver) {
+        showMessage('ゲームは終了しています');
+        return false;
+      }
+      
+      if (board[y][x] !== null) {
+        return false;
+      }
+      
+      // Save state for undo
+      history.push({
+        board: board.map(row => [...row]),
+        player: currentPlayer,
+        blackCaptured,
+        whiteCaptured
+      });
+      
+      board[y][x] = currentPlayer;
+      
+      // Check for captures
+      const opponent = currentPlayer === 'black' ? 'white' : 'black';
+      let captured = 0;
+      
+      // Check adjacent opponent groups
+      [[0, 1], [1, 0], [0, -1], [-1, 0]].forEach(([dx, dy]) => {
+        const nx = x + dx;
+        const ny = y + dy;
+        if (nx >= 0 && nx < BOARD_SIZE && ny >= 0 && ny < BOARD_SIZE) {
+          if (board[ny][nx] === opponent) {
+            const group = getGroup(nx, ny);
+            if (getLiberties(group).length === 0) {
+              captured += captureGroup(group);
+            }
+          }
+        }
+      });
+      
+      // Check if own group has liberties (suicide rule)
+      const ownGroup = getGroup(x, y);
+      if (getLiberties(ownGroup).length === 0) {
+        board[y][x] = null;
+        history.pop();
+        showMessage('自殺手は打てません');
+        return false;
+      }
+      
+      if (currentPlayer === 'black') {
+        blackCaptured += captured;
+      } else {
+        whiteCaptured += captured;
+      }
+      
+      passCount = 0;
+      switchPlayer();
+      drawBoard();
+      updateUI();
+      return true;
+    }
+    
+    // Get connected group
+    function getGroup(x, y) {
+      const color = board[y][x];
+      const group = [];
+      const visited = new Set();
+      
+      function search(x, y) {
+        const key = `${x},${y}`;
+        if (visited.has(key)) return;
+        if (x < 0 || x >= BOARD_SIZE || y < 0 || y >= BOARD_SIZE) return;
+        if (board[y][x] !== color) return;
+        
+        visited.add(key);
+        group.push({ x, y });
+        
+        search(x + 1, y);
+        search(x - 1, y);
+        search(x, y + 1);
+        search(x, y - 1);
+      }
+      
+      search(x, y);
+      return group;
+    }
+    
+    // Get liberties of a group
+    function getLiberties(group) {
+      const liberties = new Set();
+      
+      group.forEach(({ x, y }) => {
+        [[0, 1], [1, 0], [0, -1], [-1, 0]].forEach(([dx, dy]) => {
+          const nx = x + dx;
+          const ny = y + dy;
+          if (nx >= 0 && nx < BOARD_SIZE && ny >= 0 && ny < BOARD_SIZE) {
+            if (board[ny][nx] === null) {
+              liberties.add(`${nx},${ny}`);
+            }
+          }
+        });
+      });
+      
+      return Array.from(liberties);
+    }
+    
+    // Capture group
+    function captureGroup(group) {
+      group.forEach(({ x, y }) => {
+        board[y][x] = null;
+      });
+      return group.length;
+    }
+    
+    // Switch player
+    function switchPlayer() {
+      currentPlayer = currentPlayer === 'black' ? 'white' : 'black';
+    }
+    
+    // Update UI
+    function updateUI() {
+      const stonePreview = document.getElementById('stonePreview');
+      const turnText = document.getElementById('turnText');
+      
+      stonePreview.className = `stone-preview ${currentPlayer}`;
+      turnText.textContent = currentPlayer === 'black' ? '黒の番' : '白の番';
+      
+      document.getElementById('blackCaptured').textContent = blackCaptured;
+      document.getElementById('whiteCaptured').textContent = whiteCaptured;
+      
+      calculateScore();
+    }
+    
+    // Calculate score (simplified - just counts stones + captured)
+    function calculateScore() {
+      let blackStones = blackCaptured;
+      let whiteStones = whiteCaptured;
+      
+      for (let y = 0; y < BOARD_SIZE; y++) {
+        for (let x = 0; x < BOARD_SIZE; x++) {
+          if (board[y][x] === 'black') blackStones++;
+          if (board[y][x] === 'white') whiteStones++;
+        }
+      }
+      
+      document.getElementById('blackScore').textContent = blackStones;
+      document.getElementById('whiteScore').textContent = whiteStones;
+    }
+    
+    // Show message
+    function showMessage(text) {
+      const msg = document.getElementById('message');
+      msg.textContent = text;
+      msg.classList.add('show');
+      setTimeout(() => msg.classList.remove('show'), 2000);
+    }
+    
+    // Pass
+    function pass() {
+      if (gameOver) return;
+      
+      passCount++;
+      showMessage(`${currentPlayer === 'black' ? '黒' : '白'}がパスしました`);
+      
+      if (passCount >= 2) {
+        endGame();
+      } else {
+        switchPlayer();
+        updateUI();
+      }
+    }
+    
+    // Undo
+    function undo() {
+      if (history.length === 0) {
+        showMessage('戻せる手がありません');
+        return;
+      }
+      
+      const state = history.pop();
+      board = state.board;
+      currentPlayer = state.player;
+      blackCaptured = state.blackCaptured;
+      whiteCaptured = state.whiteCaptured;
+      passCount = 0;
+      gameOver = false;
+      
+      drawBoard();
+      updateUI();
+      showMessage('一手戻しました');
+    }
+    
+    // End game
+    function endGame() {
+      gameOver = true;
+      calculateScore();
+      const blackScore = parseInt(document.getElementById('blackScore').textContent);
+      const whiteScore = parseInt(document.getElementById('whiteScore').textContent);
+      
+      let result;
+      if (blackScore > whiteScore) {
+        result = `黒の勝ち！ (${blackScore} - ${whiteScore})`;
+      } else if (whiteScore > blackScore) {
+        result = `白の勝ち！ (${whiteScore} - ${blackScore})`;
+      } else {
+        result = `引き分け！ (${blackScore} - ${whiteScore})`;
+      }
+      
+      showMessage(result);
+    }
+    
+    // Event listeners
+    canvas.addEventListener('click', (e) => {
+      const pos = getBoardPosition(e);
+      if (pos) {
+        placeStone(pos.x, pos.y);
+      }
+    });
+    
+    document.getElementById('passBtn').addEventListener('click', pass);
+    document.getElementById('undoBtn').addEventListener('click', undo);
+    document.getElementById('newGameBtn').addEventListener('click', () => {
+      init();
+      showMessage('新しいゲームを開始しました');
+    });
+    document.getElementById('endGameBtn').addEventListener('click', endGame);
+    
+    // Initialize game
+    init();
+  </script>
+</body>
+</html>
