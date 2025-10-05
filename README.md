@@ -2,7 +2,7 @@
 # 6日目(100日アプリ作成チャレンジ)
 囲碁ゲームになります
 
-ここからPlayできます：
+ここからPlayできます：https://ramune3.github.io/go-game/go_game_app.html
 
 本体のコード：go_game_app.html
 
